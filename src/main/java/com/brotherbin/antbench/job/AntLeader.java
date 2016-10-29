@@ -14,6 +14,12 @@ import com.brotherbin.antbench.base.AntConfiguration;
 public class AntLeader implements Runnable {
 	
 	public static final Logger LOGGER = Logger.getLogger(AntLeader.class);
+	
+	public static final int TYPE_TPS = 1;
+	
+	public static final int TYPE_QPS = 2;
+	
+	private int workType = TYPE_TPS;
 
 	/**
 	 * 成功操作计数器
@@ -36,11 +42,19 @@ public class AntLeader implements Runnable {
 	private int tps;
 	
 	/**
+	 * 每秒处理的查询数
+	 */
+	private int qps;
+	
+	/**
 	 * 压测总耗时，单位：S
 	 */
-	private int cost;
+	private long cost;
 	
-	public AntLeader() {
+	public AntLeader(int workType) {
+		if (workType == TYPE_QPS) {
+			this.workType = TYPE_QPS;
+		}
 		// 并发数
 		int concurrency = AntConfiguration.INSTANCE.getConcurrency();
 		// 循环次数
@@ -64,7 +78,7 @@ public class AntLeader implements Runnable {
 			}
 		}
 		long endTime = System.currentTimeMillis();
-		this.cost = (int)(endTime - startTime) / 1000 ;
+		this.cost = endTime - startTime;
 		report();
 	}
 	
@@ -74,7 +88,12 @@ public class AntLeader implements Runnable {
 	public void dispatchWork() {
 		int concurrency = AntConfiguration.INSTANCE.getConcurrency();
 		for (int i = 0; i < concurrency; i ++) {
-			new Thread(new AntWorker(this)).start();
+			if (this.workType == TYPE_QPS) {
+				new Thread(new QpsWorker(this)).start();
+			} else {
+				new Thread(new TpsWorker(this)).start();
+			}
+			
 		}
 	}
 	
@@ -82,14 +101,26 @@ public class AntLeader implements Runnable {
 	 * 计算并记录结果
 	 */
 	public void report() {
-		tps =  exceptedWorkNum / this.cost;
-		LOGGER.info("concurrency: " + AntConfiguration.INSTANCE.getConcurrency());
-		LOGGER.info("exceped transactions: " + exceptedWorkNum);
-		LOGGER.info("success transactions: " + this.successCounter.get());
-		LOGGER.info("failure transactions: " + this.failureCounter.get());
-		LOGGER.info("sum cost: " + cost + "s");
-		LOGGER.info("TPS : " + tps);
-		LOGGER.info("-----------finished-----------");
+		
+		StringBuilder report = new StringBuilder("\n");
+		report.append("concurrency: ").append(AntConfiguration.INSTANCE.getConcurrency()).append("\n");
+		if (this.workType == TYPE_TPS) {
+			tps =  (int)((long)exceptedWorkNum * 1000 / this.cost);
+			report.append("exceped transactions: ").append(exceptedWorkNum).append("\n");
+			report.append("success transactions: ").append(this.successCounter.get()).append("\n");
+			report.append("failure transactions: ").append(this.failureCounter.get()).append("\n");
+			report.append("sum cost: ").append(cost).append("ms\n");
+			report.append("TPS : ").append(tps).append("\n");
+		} else {
+			qps =  (int)((long)exceptedWorkNum * 1000 / this.cost);
+			report.append("exceped queries: ").append(exceptedWorkNum).append("\n");
+			report.append("success queries: ").append(this.successCounter.get()).append("\n");
+			report.append("failure queries: ").append(this.failureCounter.get()).append("\n");
+			report.append("sum cost: ").append(cost).append("ms\n");
+			report.append("QPS : ").append(qps).append("\n");
+		}
+		report.append("-----------finished-----------");
+		LOGGER.info(report.toString());
 	}
 	
 	/**

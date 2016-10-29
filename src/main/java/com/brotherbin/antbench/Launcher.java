@@ -3,7 +3,7 @@ package com.brotherbin.antbench;
 import java.io.File;
 import java.io.IOException;
 
-import com.brotherbin.antbench.job.BenchInitialization;
+import com.brotherbin.antbench.job.EnvInitWorker;
 import com.brotherbin.antbench.job.AntLeader;
 
 /**
@@ -14,6 +14,8 @@ import com.brotherbin.antbench.job.AntLeader;
 public class Launcher {
 
 	public static final String SYS_HOME = "ANT_HOME";
+	
+	public static final String QPS = "QPS";
 
 	/**
 	 * 入口方法
@@ -25,8 +27,13 @@ public class Launcher {
 		if (getHomePath()==null) {
 			System.out.println(SYS_HOME + "is not set!!!");
 		}
-		new BenchInitialization().init();
-		new Thread(new AntLeader()).start();
+		new EnvInitWorker().start();
+		if (args!=null && args.length == 1 && QPS.equalsIgnoreCase(args[0])) {
+			new Thread(new AntLeader(AntLeader.TYPE_QPS)).start();
+		} else {
+			new Thread(new AntLeader(AntLeader.TYPE_TPS)).start();
+		}
+		
 	}
 
 	private static String getHomePath() {
