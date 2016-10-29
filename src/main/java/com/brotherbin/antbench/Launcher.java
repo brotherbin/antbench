@@ -27,10 +27,10 @@ public class Launcher {
 		if (getHomePath()==null) {
 			System.out.println(SYS_HOME + "is not set!!!");
 		}
-		new EnvInitWorker().start();
 		if (args!=null && args.length == 1 && QPS.equalsIgnoreCase(args[0])) {
 			new Thread(new AntLeader(AntLeader.TYPE_QPS)).start();
 		} else {
+			new EnvInitWorker().start();
 			new Thread(new AntLeader(AntLeader.TYPE_TPS)).start();
 		}
 		
